@@ -1,1 +1,81 @@
+##
+SARSA算法
+##
 
+
+
+import numpy as np
+import random
+
+# 环境定义：4x4 网格世界
+GRID_SIZE = 4
+START = (0, 0)
+GOAL  = (3, 3)
+ACTIONS = ['上', '下', '左', '右']
+n_actions = len(ACTIONS)
+n_states  = GRID_SIZE ** 2
+
+# 初始化Q表
+Q = np.zeros((n_states, n_actions))
+
+def state_to_idx(s):
+    return s[0] * GRID_SIZE + s[1]
+
+def step(state, action_idx):
+    r, c = state
+    if   action_idx == 0: r -= 1
+    elif action_idx == 1: r += 1
+    elif action_idx == 2: c -= 1
+    else:                 c += 1
+    r = max(0, min(GRID_SIZE-1, r))
+    c = max(0, min(GRID_SIZE-1, c))
+    next_state = (r, c)
+    if next_state == GOAL:
+        return next_state, +1.0, True
+    else:
+        return next_state, -0.01, False
+
+def epsilon_greedy(state, epsilon):
+    s_idx = state_to_idx(state)
+    if random.random() < epsilon:
+        return random.randint(0, n_actions-1)
+    else:
+        return np.argmax(Q[s_idx])
+
+# 超参数
+alpha   = 0.1
+gamma   = 0.99
+epsilon = 0.1
+episodes = 500
+
+# SARSA 主训练循环
+for episode in range(episodes):
+    S = START
+    A = epsilon_greedy(S, epsilon)  # 选择初始动作
+    
+    while True:
+        S_, R, done = step(S, A)
+        A_ = epsilon_greedy(S_, epsilon)  # On-Policy：用同一策略选A'
+        
+        s_idx  = state_to_idx(S)
+        s__idx = state_to_idx(S_)
+        td_target = R + gamma * Q[s__idx, A_]  # 使用A'而非argmax
+        td_error  = td_target - Q[s_idx, A]
+        Q[s_idx, A] += alpha * td_error
+        
+        S, A = S_, A_  # 传递下一状态和动作
+        if done: break
+
+# 输出学到的策略
+arrows = ['↑', '↓', '←', '→']
+print('学到的最优策略：')
+for r in range(GRID_SIZE):
+    row = ''
+    for c in range(GRID_SIZE):
+        if (r, c) == GOAL:
+            row += ' G '
+        else:
+            idx = state_to_idx((r, c))
+            best = np.argmax(Q[idx])
+            row += f' {arrows[best]} '
+    print(row)
