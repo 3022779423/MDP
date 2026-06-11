@@ -79,3 +79,83 @@ for r in range(GRID_SIZE):
             best = np.argmax(Q[idx])
             row += f' {arrows[best]} '
     print(row)
+
+
+
+##
+Q-Learning
+##
+
+import numpy as np
+import random
+
+# 环境定义：4×4 网格世界
+GRID   = 4
+START  = (0, 0)
+GOAL   = (3, 3)
+ACTS   = [(-1,0),(1,0),(0,-1),(0,1)]   # 上下左右
+N_ACT  = len(ACTS)   # 4
+N_ST   = GRID ** 2   # 16
+
+# 初始化 Q 表
+Q = np.zeros((N_ST, N_ACT))
+
+def s2i(s):
+    return s[0] * GRID + s[1]
+
+def env_step(state, act_idx):
+    r, c = state
+    dr, dc = ACTS[act_idx]
+    nr = max(0, min(GRID-1, r+dr))
+    nc = max(0, min(GRID-1, c+dc))
+    nxt = (nr, nc)
+    if nxt == GOAL:
+        return nxt, +1.0, True
+    return nxt, -0.01, False
+
+def choose_action(state, epsilon):
+    if random.random() < epsilon:
+        return random.randint(0, N_ACT-1)
+    return int(np.argmax(Q[s2i(state)]))
+
+# 超参数
+ALPHA   = 0.1
+GAMMA   = 0.99
+EPSILON = 0.1
+EPISODES = 500
+
+# Q-Learning 主训练循环
+for ep in range(EPISODES):
+    S = START
+
+    while True:
+        A = choose_action(S, EPSILON)
+        S_, R, done = env_step(S, A)
+
+        # ★ Q-Learning 核心更新：使用 max Q(S')
+        si, si_ = s2i(S), s2i(S_)
+        max_q_next = np.max(Q[si_])                  # 贪心最优（不实际执行）
+        td_target  = R + GAMMA * max_q_next
+        td_error   = td_target - Q[si, A]
+        Q[si, A]  += ALPHA * td_error
+
+        S = S_   # 只更新状态，不需要传递 A'
+        if done:
+            break
+
+# 展示结果
+ARROWS = ['↑','↓','←','→']
+print('最优策略地图：')
+for r in range(GRID):
+    row = ''
+    for c in range(GRID):
+        if (r,c) == GOAL:
+            row += ' G '
+        else:
+            best = np.argmax(Q[s2i((r,c))])
+            row += f' {ARROWS[best]} '
+    print(row)
+
+print('\nQ 表（前4行）：')
+print(Q[:4].round(3))
+
